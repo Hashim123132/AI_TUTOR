@@ -5,7 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.dashboard import router as dashboard_router
+from app.api.generate import router as generate_router
 from app.config import get_settings
+from app.ml.model import warm_up
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,6 +32,9 @@ def log_startup_config() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     log_startup_config()
+    # Pre-load the Nosheen_Hina model so the first request is not slow.
+    # warm_up() is a no-op if the checkpoint is absent; it logs an error instead.
+    warm_up()
     yield
 
 
@@ -53,6 +58,7 @@ app.add_middleware(
 )
 
 app.include_router(dashboard_router)
+app.include_router(generate_router)
 
 
 @app.get("/")
