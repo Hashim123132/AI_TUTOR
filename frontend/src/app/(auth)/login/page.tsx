@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { friendlyOAuthError } from "@/lib/auth/oauth-errors"
 import {
   Card,
   CardContent,
@@ -11,7 +12,15 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 
 export const metadata: Metadata = { title: "Sign in" }
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[] }>
+}) {
+  const params = await searchParams
+  const oauthError =
+    typeof params.error === "string" && params.error ? params.error : null
+
   return (
     <Card>
       <CardHeader>
@@ -20,7 +29,16 @@ export default function LoginPage() {
           Sign in to continue your study plan.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {oauthError ? (
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm font-medium text-destructive"
+          >
+            {friendlyOAuthError(oauthError)}
+          </p>
+        ) : null}
+
         {isSupabaseConfigured ? (
           <LoginForm />
         ) : (

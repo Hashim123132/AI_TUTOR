@@ -283,7 +283,7 @@ async function persistStep(
     return failure(step, merged, {}, "Could not finish setup. Try again.")
   }
 
-  redirect("/")
+  redirect("/dashboard")
 }
 
 export async function saveStep1(

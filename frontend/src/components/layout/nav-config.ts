@@ -19,7 +19,7 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   {
     label: "Dashboard",
-    href: "/",
+    href: "/dashboard",
     icon: LayoutDashboardIcon,
     description: "Today's tasks and progress at a glance",
   },

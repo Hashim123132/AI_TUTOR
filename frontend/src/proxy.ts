@@ -6,12 +6,21 @@ import {
   supabaseUrl,
 } from "@/lib/supabase/config"
 
-const PUBLIC_PATHS = ["/login", "/signup"]
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth/callback"]
+const AUTH_PAGE_PATHS = ["/login", "/signup"]
 
-function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.some(
+function pathMatches(pathname: string, paths: string[]): boolean {
+  return paths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   )
+}
+
+function isPublicPath(pathname: string): boolean {
+  return pathMatches(pathname, PUBLIC_PATHS)
+}
+
+function isAuthPagePath(pathname: string): boolean {
+  return pathMatches(pathname, AUTH_PAGE_PATHS)
 }
 
 function redirectWithCookies(
@@ -67,9 +76,9 @@ export async function proxy(request: NextRequest) {
     return redirectWithCookies(request, response, url)
   }
 
-  if (user && isPublicPath(pathname)) {
+  if (user && (pathname === "/" || isAuthPagePath(pathname))) {
     const url = request.nextUrl.clone()
-    url.pathname = "/"
+    url.pathname = "/dashboard"
     url.search = ""
     return redirectWithCookies(request, response, url)
   }

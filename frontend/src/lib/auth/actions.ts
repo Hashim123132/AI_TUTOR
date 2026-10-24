@@ -1,5 +1,6 @@
 "use server"
 
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
@@ -73,7 +74,7 @@ export async function loginAction(
     .eq("user_id", userId)
     .maybeSingle()
 
-  redirect(profile?.onboarding_completed_at ? "/" : "/onboarding")
+  redirect(profile?.onboarding_completed_at ? "/dashboard" : "/onboarding")
 }
 
 export async function signupAction(
@@ -117,6 +118,56 @@ export async function signupAction(
   return {
     message: "Check your inbox to confirm your email address, then sign in.",
   }
+}
+
+async function getAppOrigin(): Promise<string> {
+  const headerStore = await headers()
+  const origin = headerStore.get("origin")
+  if (origin) {
+    return origin
+  }
+  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host")
+  if (host) {
+    const protocol = headerStore.get("x-forwarded-proto") ?? "http"
+    return `${protocol}://${host}`
+  }
+  return "http://localhost:3000"
+}
+
+export async function signInWithGoogleAction(
+  _prev: AuthFormState,
+  _formData: FormData
+): Promise<AuthFormState> {
+  if (!isSupabaseConfigured) {
+    return { error: NOT_CONFIGURED_ERROR }
+  }
+
+  const supabase = await createSupabaseServerClient()
+
+  try {
+    const origin = await getAppOrigin()
+    const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent("/dashboard")}`
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    })
+
+    if (error) {
+      return { error: friendlyAuthError(error.message) }
+    }
+
+    if (data.url) {
+      redirect(data.url)
+    }
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error
+    }
+    return { error: "Could not start Google sign-in. Try again shortly." }
+  }
+
+  return { error: "Could not start Google sign-in. Try again shortly." }
 }
 
 export async function logoutAction(): Promise<void> {

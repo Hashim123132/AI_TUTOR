@@ -26,7 +26,7 @@ export default async function OnboardingPage() {
 
   const profileRow = (profile ?? null) as ProfileRow | null
   if (profileRow?.onboarding_completed_at) {
-    redirect("/")
+    redirect("/dashboard")
   }
 
   const initialData = rowToOnboardingData(
