@@ -54,7 +54,7 @@ export function SiteFooter() {
 
         <div className="mt-12 flex flex-col gap-2 border-t pt-6 text-sm sm:flex-row sm:items-center sm:justify-between">
           <p className="text-muted-foreground">
-            © {new Date().getFullYear()} AI Learning Tutor
+            © 2026 AI Learning Tutor
           </p>
           <p className="text-muted-foreground">Learn smarter. Master more.</p>
         </div>
