@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import { friendlyOAuthError } from "@/lib/auth/oauth-errors"
 import {
@@ -12,15 +13,30 @@ import { isSupabaseConfigured } from "@/lib/supabase/config"
 
 export const metadata: Metadata = { title: "Sign in" }
 
-export default async function LoginPage({
-  searchParams,
-}: {
+type LoginPageProps = {
   searchParams: Promise<{ error?: string | string[] }>
-}) {
+}
+
+async function OAuthErrorNotice({ searchParams }: LoginPageProps) {
   const params = await searchParams
   const oauthError =
     typeof params.error === "string" && params.error ? params.error : null
 
+  if (!oauthError) {
+    return null
+  }
+
+  return (
+    <p
+      role="alert"
+      className="rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm font-medium text-destructive"
+    >
+      {friendlyOAuthError(oauthError)}
+    </p>
+  )
+}
+
+export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <Card>
       <CardHeader>
@@ -30,14 +46,9 @@ export default async function LoginPage({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {oauthError ? (
-          <p
-            role="alert"
-            className="rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm font-medium text-destructive"
-          >
-            {friendlyOAuthError(oauthError)}
-          </p>
-        ) : null}
+        <Suspense fallback={null}>
+          <OAuthErrorNotice searchParams={searchParams} />
+        </Suspense>
 
         {isSupabaseConfigured ? (
           <LoginForm />
