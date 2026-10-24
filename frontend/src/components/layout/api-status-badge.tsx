@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 
 type ApiStatus = "checking" | "online" | "offline"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, "")
 
 export function ApiStatusBadge({ className }: { className?: string }) {
   const [status, setStatus] = useState<ApiStatus>(API_URL ? "checking" : "offline")
