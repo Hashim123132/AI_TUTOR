@@ -18,6 +18,7 @@ import os
 import threading
 from pathlib import Path
 from typing import Optional
+from huggingface_hub import hf_hub_download
 
 import torch
 import torch.nn as nn
@@ -40,8 +41,22 @@ MAX_NEW_TOKENS_DEFAULT: int = 200   # conservative default (latency-friendly)
 MAX_NEW_TOKENS_LIMIT: int = 350     # hard ceiling per request
 
 # Path to the checkpoint file (resolved relative to this file's location)
+# _MODELS_DIR = Path(__file__).parent.parent.parent / "models"
+# CHECKPOINT_PATH: Path = _MODELS_DIR / "nosheen_hina_best.pt"
+
+
 _MODELS_DIR = Path(__file__).parent.parent.parent / "models"
-CHECKPOINT_PATH: Path = _MODELS_DIR / "nosheen_hina_best.pt"
+LOCAL_CHECKPOINT_PATH = _MODELS_DIR / "nosheen_hina_best.pt"
+
+def get_checkpoint_path() -> Path:
+    if os.getenv("VERCEL"):
+        return Path(
+            hf_hub_download(
+                repo_id="HashimUmar/nosheen-hina-model",
+                filename="nosheen_hina_best.pt",
+            )
+        )
+    return LOCAL_CHECKPOINT_PATH
 
 # ---------------------------------------------------------------------------
 # Architecture (verbatim from the notebook, variable names preserved)
@@ -182,30 +197,21 @@ class _ModelState:
         self._val_loss: Optional[float] = None
         self._load_error: Optional[str] = None
 
-    def _load(self) -> None:
-        """Load checkpoint once. Call only while holding self._lock."""
-        if not CHECKPOINT_PATH.exists():
-            self._load_error = (
-                f"Checkpoint not found at {CHECKPOINT_PATH}. "
-                "Ensure backend/models/nosheen_hina_best.pt is present."
-            )
-            logger.error(self._load_error)
-            return
+    
+def _load(self) -> None:
+    """Load checkpoint once. Call only while holding self._lock."""
+    try:
+        checkpoint_path = get_checkpoint_path()
+        logger.info("Loading Nosheen_Hina checkpoint from %s", checkpoint_path)
 
-        logger.info("Loading Nosheen_Hina checkpoint from %s …", CHECKPOINT_PATH)
-        try:
-            checkpoint = torch.load(
-                CHECKPOINT_PATH,
-                map_location=torch.device("cpu"),
-                weights_only=False,  # checkpoint contains Python dicts (stoi/itos)
-            )
-        except Exception as exc:  # noqa: BLE001
-            self._load_error = f"Failed to load checkpoint: {exc}"
-            logger.exception(self._load_error)
-            return
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location=torch.device("cpu"),
+            weights_only=False,
+        )
 
-        self._stoi     = checkpoint["stoi"]
-        self._itos     = checkpoint["itos"]
+        self._stoi = checkpoint["stoi"]
+        self._itos = checkpoint["itos"]
         self._val_loss = checkpoint.get("val_loss")
 
         model = Nosheen_Hina()
@@ -214,10 +220,14 @@ class _ModelState:
         self._model = model
 
         logger.info(
-            "Teacher Shneela is awake! val_loss=%s  vocab=%d",
+            "Teacher Shneela is awake! val_loss=%s vocab=%d",
             f"{self._val_loss:.4f}" if self._val_loss is not None else "N/A",
             len(self._stoi),
         )
+
+    except Exception as exc:
+        self._load_error = f"Failed to download/load checkpoint: {exc}"
+        logger.exception(self._load_error)
 
     def ensure_loaded(self) -> None:
         if self._model is not None or self._load_error is not None:
