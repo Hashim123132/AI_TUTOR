@@ -22,3 +22,9 @@ class GenerateResponse(BaseModel):
     prompt: str
     generated_text: str
     tokens_generated: int
+    provider: str = Field(
+        description=(
+            "Provider that produced this answer: 'teacher_shneela' or 'groq'. "
+            "Resolved server-side from the student's saved preference."
+        ),
+    )

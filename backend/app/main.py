@@ -27,6 +27,13 @@ def log_startup_config() -> None:
             "until it is. See backend/.env.example."
         )
 
+    if not settings.groq_configured:
+        logger.warning(
+            "GROQ_API_KEY is not set. Students who select Groq in Settings "
+            "will get a 503 (provider_not_configured) from POST /api/generate. "
+            "See backend/.env.example."
+        )
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):

@@ -24,9 +24,20 @@ class Settings(BaseSettings):
     supabase_service_role_key: str | None = None
     dashboard_demo_mode: bool = False
 
+    # Groq (hosted LLM). The API key is a backend secret only.
+    groq_api_key: str | None = None
+    groq_model: str = "openai/gpt-oss-120b"
+    groq_timeout_seconds: float = 30.0
+    groq_max_retries: int = 0
+
+    # Teacher Shneela: HF Space serving the custom Nosheen_Hina PyTorch model.
+    teacher_shneela_space_url: str = "https://hashimumar-nosheen-hina.hf.space"
+    teacher_shneela_timeout_seconds: float = 300.0
+
     @field_validator(
         "supabase_url",
         "supabase_service_role_key",
+        "groq_api_key",
         mode="before",
     )
     @classmethod
@@ -38,6 +49,10 @@ class Settings(BaseSettings):
     @property
     def supabase_configured(self) -> bool:
         return bool(self.supabase_url and self.supabase_service_role_key)
+
+    @property
+    def groq_configured(self) -> bool:
+        return bool(self.groq_api_key)
 
 
 @lru_cache

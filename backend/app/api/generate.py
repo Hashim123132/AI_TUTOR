@@ -1,67 +1,99 @@
-import json
+"""POST /api/generate – provider-routed tutoring generation.
+
+The student's AI provider is resolved server-side from their Supabase
+profile using the Bearer token verified by GoTrue. The request body never
+selects a provider, and a failing provider is never silently replaced.
+"""
+
 import logging
+from typing import Annotated
 
-import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 
+from app.auth import require_user
 from app.schemas.generate import GenerateRequest, GenerateResponse
+from app.services import tutoring
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["generate"])
 
-SPACE_URL = "https://hashimumar-nosheen-hina.hf.space"
-TIMEOUT = 300.0
+
+def _error_detail(
+    exc: Exception,
+    code: str,
+    provider: tutoring.Provider | None = None,
+) -> dict:
+    detail: dict = {"code": code, "message": str(exc)}
+    if provider is not None:
+        detail["provider"] = provider
+        detail["provider_label"] = tutoring.PROVIDER_LABELS[provider]
+    return detail
 
 
 @router.post(
     "/generate",
     response_model=GenerateResponse,
-    summary="Generate text from a prompt",
+    summary="Generate a tutoring answer with the student's saved AI provider",
 )
-def post_generate(body: GenerateRequest) -> GenerateResponse:
+def post_generate(
+    body: GenerateRequest,
+    authorization: Annotated[str | None, Header()] = None,
+) -> GenerateResponse:
+    """Answer *prompt* using the provider the student chose in Settings.
+
+    Requires a Supabase access token. Returns structured errors that name
+    the provider so the chat UI can offer a retry or a switch in Settings;
+    it never falls back to a different provider.
+    """
+    user = require_user(authorization)
+
     try:
-        with httpx.Client(timeout=TIMEOUT) as client:
-            response = client.post(
-                f"{SPACE_URL}/gradio_api/call/generate_text",
-                json={"data": [body.prompt, body.max_new_tokens]},
-            )
-            response.raise_for_status()
-            event_id = response.json()["event_id"]
-
-            response = client.get(
-                f"{SPACE_URL}/gradio_api/call/generate_text/{event_id}"
-            )
-            response.raise_for_status()
-
-            result = None
-            for line in response.iter_lines():
-                if not line.startswith("data:"):
-                    continue
-
-                payload = json.loads(line[5:].strip())
-
-                if isinstance(payload, dict) and payload.get("error"):
-                    raise RuntimeError(str(payload["error"]))
-
-                if isinstance(payload, list) and payload:
-                    result = payload[0]
-                elif isinstance(payload, str):
-                    result = payload
-
-            if not isinstance(result, str):
-                raise RuntimeError("The model returned an invalid response.")
-
-            full_text = result
-
-    except (httpx.HTTPError, KeyError, ValueError, RuntimeError) as exc:
-        logger.exception("Hugging Face generation failed")
+        result = tutoring.generate_answer(
+            user.id,
+            body.prompt,
+            body.max_new_tokens,
+        )
+    except tutoring.PreferenceStoreError as exc:
+        logger.error("Could not read ai_provider for user %s", user.id)
         raise HTTPException(
             status_code=503,
-            detail="The generation model is temporarily unavailable.",
+            detail=_error_detail(
+                exc,
+                "preference_store_unavailable",
+            ),
+        ) from exc
+    except tutoring.ProviderNotConfigured as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=_error_detail(exc, "provider_not_configured", exc.provider),
+        ) from exc
+    except tutoring.ProviderTimeout as exc:
+        raise HTTPException(
+            status_code=504,
+            detail=_error_detail(exc, "provider_timeout", exc.provider),
+        ) from exc
+    except tutoring.ProviderRateLimited as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=_error_detail(exc, "provider_rate_limited", exc.provider),
+        ) from exc
+    except tutoring.ProviderAuthError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=_error_detail(exc, "provider_misconfigured", exc.provider),
+        ) from exc
+    except tutoring.ProviderError as exc:
+        logger.exception(
+            "Provider %s failed for user %s", exc.provider, user.id
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=_error_detail(exc, "provider_error", exc.provider),
         ) from exc
 
     return GenerateResponse(
         prompt=body.prompt,
-        generated_text=full_text,
-        tokens_generated=max(0, len(full_text) - len(body.prompt)),
+        generated_text=result.generated_text,
+        tokens_generated=result.tokens_generated,
+        provider=result.provider,
     )

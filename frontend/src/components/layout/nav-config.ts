@@ -6,6 +6,7 @@ import {
   GraduationCapIcon,
   LayoutDashboardIcon,
   MessagesSquareIcon,
+  SettingsIcon,
   TargetIcon,
 } from "lucide-react"
 
@@ -52,6 +53,12 @@ export const navItems: NavItem[] = [
     href: "/progress",
     icon: TargetIcon,
     description: "Mastery tracking over time",
+  },
+  {
+    label: "Settings",
+    href: "/settings",
+    icon: SettingsIcon,
+    description: "AI provider and preferences",
   },
 ]
 
