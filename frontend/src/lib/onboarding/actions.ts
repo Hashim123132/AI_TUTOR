@@ -129,7 +129,7 @@ async function persistStep(
   }
 
   const profilePatch: Record<string, unknown> = {
-    current_step: Math.max(profile?.current_step ?? 1, step + 1),
+    current_step: Math.min(TOTAL_STEPS, Math.max(profile?.current_step ?? 1, step + 1)),
   }
   if (step === 1) {
     profilePatch.display_name = merged.displayName.trim()
@@ -150,7 +150,7 @@ async function persistStep(
   if (!profile) {
     const { error: insertError } = await supabase.from("profiles").insert({
       user_id: user.id,
-      current_step: Math.max(2, step + 1),
+      current_step: Math.min(TOTAL_STEPS, Math.max(2, step + 1)),
       ...(step === 1
         ? {
             display_name: merged.displayName.trim(),
@@ -159,7 +159,12 @@ async function persistStep(
         : {}),
     })
     if (insertError) {
-      return failure(step, merged, {}, "Could not save your progress. Try again.")
+      return failure(
+        step,
+        merged,
+        {},
+        `Could not save your progress (${insertError.message}). Try again.`
+      )
     }
   }
 
@@ -169,7 +174,12 @@ async function persistStep(
       .update(profilePatch)
       .eq("user_id", user.id)
     if (error) {
-      return failure(step, merged, {}, "Could not save your progress. Try again.")
+      return failure(
+        step,
+        merged,
+        {},
+        `Could not save your progress (${error.message}). Try again.`
+      )
     }
   } else if (profile) {
     const { error } = await supabase
@@ -280,7 +290,12 @@ async function persistStep(
     })
     .eq("user_id", user.id)
   if (completeError) {
-    return failure(step, merged, {}, "Could not finish setup. Try again.")
+    return failure(
+      step,
+      merged,
+      {},
+      `Could not finish setup (${completeError.message}). Try again.`
+    )
   }
 
   redirect("/dashboard")
