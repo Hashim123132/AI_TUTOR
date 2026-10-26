@@ -198,36 +198,36 @@ class _ModelState:
         self._load_error: Optional[str] = None
 
     
-def _load(self) -> None:
-    """Load checkpoint once. Call only while holding self._lock."""
-    try:
-        checkpoint_path = get_checkpoint_path()
-        logger.info("Loading Nosheen_Hina checkpoint from %s", checkpoint_path)
+    def _load(self) -> None:
+        """Load checkpoint once. Call only while holding self._lock."""
+        try:
+            checkpoint_path = get_checkpoint_path()
+            logger.info("Loading Nosheen_Hina checkpoint from %s", checkpoint_path)
 
-        checkpoint = torch.load(
-            checkpoint_path,
-            map_location=torch.device("cpu"),
-            weights_only=False,
-        )
+            checkpoint = torch.load(
+                checkpoint_path,
+                map_location=torch.device("cpu"),
+                weights_only=False,
+            )
 
-        self._stoi = checkpoint["stoi"]
-        self._itos = checkpoint["itos"]
-        self._val_loss = checkpoint.get("val_loss")
+            self._stoi = checkpoint["stoi"]
+            self._itos = checkpoint["itos"]
+            self._val_loss = checkpoint.get("val_loss")
 
-        model = Nosheen_Hina()
-        model.load_state_dict(checkpoint["model_state_dict"])
-        model.eval()
-        self._model = model
+            model = Nosheen_Hina()
+            model.load_state_dict(checkpoint["model_state_dict"])
+            model.eval()
+            self._model = model
 
-        logger.info(
-            "Teacher Shneela is awake! val_loss=%s vocab=%d",
-            f"{self._val_loss:.4f}" if self._val_loss is not None else "N/A",
-            len(self._stoi),
-        )
+            logger.info(
+                "Teacher Shneela is awake! val_loss=%s vocab=%d",
+                f"{self._val_loss:.4f}" if self._val_loss is not None else "N/A",
+                len(self._stoi),
+            )
 
-    except Exception as exc:
-        self._load_error = f"Failed to download/load checkpoint: {exc}"
-        logger.exception(self._load_error)
+        except Exception as exc:
+            self._load_error = f"Failed to download/load checkpoint: {exc}"
+            logger.exception(self._load_error)
 
     def ensure_loaded(self) -> None:
         if self._model is not None or self._load_error is not None:

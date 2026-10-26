@@ -12,10 +12,6 @@ dependencies = [
     "pymupdf>=2.0",
     "python-multipart>=0.0.32",
     "supabase>=2.33.0",
-    # CPU-only PyTorch – avoids the multi-GB CUDA wheels.
-    # Install with: uv pip install torch --index-url https://download.pytorch.org/whl/cpu
-    "torch>=2.2.0",
-    "huggingface-hub>=0.30.0",
 ]
 
 [dependency-groups]
