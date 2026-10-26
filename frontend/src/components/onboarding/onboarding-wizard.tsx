@@ -18,6 +18,7 @@ import {
   submitOnboardingStep,
 } from "@/lib/onboarding/actions"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { FieldError, Input } from "@/components/ui/input"
 import { LogoutButton } from "@/components/auth/logout-button"
 
@@ -145,7 +146,8 @@ export function OnboardingWizard({ initialData, initialStep }: Props) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+    <Card className="mx-auto w-full max-w-2xl">
+      <CardContent className="flex flex-col gap-6 p-5 sm:p-6">
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <p className="text-sm font-medium text-muted-foreground">
@@ -592,13 +594,14 @@ export function OnboardingWizard({ initialData, initialStep }: Props) {
               </>
             ) : (
               <>
-                Next
+                Continue
                 <ArrowRightIcon aria-hidden="true" className="size-4" />
               </>
             )}
           </Button>
         </div>
       </form>
-    </div>
+      </CardContent>
+    </Card>
   )
 }
